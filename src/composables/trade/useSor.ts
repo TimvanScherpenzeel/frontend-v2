@@ -45,7 +45,6 @@ import { formatUnits, parseUnits } from 'ethers/lib/utils';
 
 const GAS_PRICE = process.env.VUE_APP_GAS_PRICE || '100000000000';
 const MAX_POOLS = process.env.VUE_APP_MAX_POOLS || '4';
-const SWAP_COST = process.env.VUE_APP_SWAP_COST || '100000';
 const MIN_PRICE_IMPACT = 0.0001;
 const HIGH_PRICE_IMPACT_THRESHOLD = 0.05;
 const state = reactive({
@@ -565,16 +564,12 @@ export default function useSor({
     }
   }
 
-  // Uses stored market prices to calculate swap cost in token denomination
-  function calculateSwapCost(tokenAddress: string): BigNumber {
+  // Uses stored market prices to calculate price of native asset in terms of token
+  function calculateEthPriceInToken(tokenAddress: string): BigNumber {
     const ethPriceFiat = priceFor(appNetworkConfig.nativeAsset.address);
     const tokenPriceFiat = priceFor(tokenAddress);
-    const gasPriceWei = store.state.market.gasPrice || 0;
-    const gasPriceScaled = scale(bnum(gasPriceWei), -18);
     const ethPriceToken = bnum(Number(ethPriceFiat) / Number(tokenPriceFiat));
-    const swapCost = bnum(SWAP_COST);
-    const costSwapToken = gasPriceScaled.times(swapCost).times(ethPriceToken);
-    return costSwapToken;
+    return ethPriceToken;
   }
 
   // Sets SOR swap cost for more efficient routing
@@ -583,18 +578,16 @@ export default function useSor({
     tokenDecimals: number,
     sorManager: SorManager
   ): Promise<void> {
-    // If using Polygon get price of swap using stored market prices
-    // If mainnet price retrieved on-chain using SOR
     if (appNetworkConfig.chainId === 137) {
-      const swapCostToken = calculateSwapCost(tokenOutAddressInput.value);
-      await sorManager.setCostOutputToken(
-        tokenAddress,
-        tokenDecimals,
-        swapCostToken
+      // If using Polygon get price of swap using stored market prices
+      const ethPriceToken = calculateEthPriceInToken(tokenAddress).times(
+        new BigNumber(10 ** tokenDecimals)
       );
-    } else {
-      await sorManager.setCostOutputToken(tokenAddress, tokenDecimals);
+      await sorManager.setCostOutputToken(tokenAddress, ethPriceToken);
+      return;
     }
+    // On mainnet the SOR will pull the price automatically
+    await sorManager.setCostOutputToken(tokenAddress);
   }
 
   function getMaxIn(amount: BigNumber) {
