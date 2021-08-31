@@ -3,7 +3,6 @@ import {
   SwapInfo,
   SubgraphPoolBase,
   SwapTypes,
-  fetchSubgraphPools,
   SwapOptions,
   PoolFilter,
   bnum
@@ -70,7 +69,7 @@ export class SorManager {
     chainId: number,
     weth: string,
     poolsSourceV1: string,
-    poolsSourceV2: SubgraphPoolBase[] | string,
+    poolsSourceV2: SubgraphPoolBase[],
     subgraphUrlV2: string
   ) {
     this.isV1Supported = isV1Supported;
@@ -84,7 +83,7 @@ export class SorManager {
       poolsSourceV1
     );
 
-    this.sorV2 = new SORV2(provider, chainId, poolsSourceV2);
+    this.sorV2 = new SORV2(provider, chainId, subgraphUrlV2, poolsSourceV2);
     this.weth = weth;
     this.gasPrice = gasPrice;
     this.maxPools = maxPools;
@@ -131,9 +130,6 @@ export class SorManager {
   async fetchPools(): Promise<void> {
     let v1fetch;
     console.log(`[SorManager] fetch Subgraph (V1:${this.isV1Supported})`);
-    // Starts fetch of all pools from V2 subgraph (non-blocking)
-    const subgraphFetchV2 = fetchSubgraphPools(this.subgraphUrlV2);
-
     if (this.isV1Supported) {
       console.log('[SorManager] V1 fetchPools started');
       v1fetch = this.sorV1.fetchPools();
@@ -141,12 +137,9 @@ export class SorManager {
 
     // This will catch any error fetching Subgraph or onChain data with V2
     try {
-      // Wait for V2 subgraph fetch
-      const subgraphPoolsV2 = await subgraphFetchV2;
-      console.log('[SorManager] SubgraphV2 fetched');
       console.time('[SorManager] V2 fetchPools');
-      // Use Subgraph pools data and fetch onChain
-      const v2result = await this.sorV2.fetchPools(subgraphPoolsV2);
+      // Fetch of all pools from V2 subgraph and pull onchain data
+      const v2result = await this.sorV2.fetchPools();
       this.fetchStatus.v2finishedFetch = true;
       this.fetchStatus.v2success = v2result;
     } catch (err) {
