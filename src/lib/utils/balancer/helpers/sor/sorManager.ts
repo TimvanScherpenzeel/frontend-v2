@@ -49,7 +49,6 @@ export class SorManager {
   private sorV1: SORV1;
   private sorV2: SORV2;
   private weth: string;
-  private subgraphUrlV2: string;
   private fetchStatus: FetchStatus = {
     v1finishedFetch: false,
     v2finishedFetch: false,
@@ -87,7 +86,6 @@ export class SorManager {
     this.weth = weth;
     this.gasPrice = gasPrice;
     this.maxPools = maxPools;
-    this.subgraphUrlV2 = subgraphUrlV2;
   }
 
   // Uses SOR V2 to retrieve the cost & reuses for SOR V1 to save time (requires onchain call).
